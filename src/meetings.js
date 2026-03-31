@@ -1,20 +1,3 @@
-// export const meetings = {};
-
-// export function createMeetingRecord(meetingId, candidateEmail) {
-//   meetings[meetingId] = {
-//     candidateEmail,
-//     answers: [],
-//     questions: [
-//       "Tell me about yourself",
-//       "Explain your recent project",
-//       "What are your strengths?"
-//     ]
-//   };
-// }
-
-// export function getMeeting(meetingId) {
-//   return meetings[meetingId];
-// }
 
 export const meetings = {};
 

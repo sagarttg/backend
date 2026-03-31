@@ -1,5 +1,3 @@
-
-
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -14,9 +12,11 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-app.use(cors({
-  origin: "*",
-}));
+app.use(
+  cors({
+    origin: "*",
+  }),
+);
 
 const PORT = process.env.PORT || 5000;
 
@@ -90,25 +90,39 @@ app.post("/answer", async (req, res) => {
   try {
     const { meetingId, answer } = req.body;
 
+    // ✅ Validation
+    if (!meetingId || !answer) {
+      return res.status(400).json({ error: "Missing meetingId or answer" });
+    }
+
     const meeting = getMeeting(meetingId);
 
     if (!meeting) {
       return res.status(404).json({ error: "Meeting not found" });
     }
 
+    // ✅ Store answer
     meeting.answers.push(answer);
 
+    // ✅ Generate next question
     const nextQuestion = await getNextQuestion(answer);
 
+    // ✅ Store question
     meeting.questions.push(nextQuestion);
 
-    res.json({ nextQuestion });
+    return res.json({
+      success: true,
+      nextQuestion,
+    });
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: "AI failed" });
+    console.error("ANSWER ROUTE ERROR:", err.response?.data || err.message);
+
+    return res.status(500).json({
+      error: "AI failed",
+      details: err.response?.data || err.message,
+    });
   }
 });
-
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on ${PORT}`);
 });

@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import crypto from "crypto";
 
-import { createTeamsMeeting } from "./graph.js";
+import { createTeamsMeeting, sendInviteEmail } from "./graph.js";
 import { createMeetingRecord, getMeeting, meetings } from "./meetings.js";
 import { getNextQuestion } from "./ai.js";
 
@@ -12,15 +12,13 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-app.use(
-  cors({
-    origin: "*",
-  }),
-);
+app.use(cors({ origin: "*" }));
 
 const PORT = process.env.PORT || 5000;
 
+// ============================
 // HEALTH
+// ============================
 app.get("/", (req, res) => {
   res.send("Backend running 🚀");
 });
@@ -32,31 +30,42 @@ app.post("/create-meeting", async (req, res) => {
   try {
     const { candidateEmail } = req.body;
 
+    // 1. Create meeting
     const data = await createTeamsMeeting(candidateEmail);
 
     const appMeetingId = crypto.randomUUID();
-
     const joinUrl = data.onlineMeeting?.joinUrl;
 
+    // 2. Store meeting
     createMeetingRecord(appMeetingId, {
       candidateEmail,
       graphEventId: data.id,
       joinUrl,
     });
 
+    // 3. SEND EMAIL (CRITICAL FIX)
+    await sendInviteEmail(candidateEmail, joinUrl);
+
+    // 4. Respond
     res.json({
       meetingId: appMeetingId,
       joinUrl,
     });
+
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: "Meeting failed" });
+    console.error("CREATE MEETING ERROR:", err.response?.data || err.message);
+
+    res.status(500).json({
+      error: "Meeting failed",
+      details: err.response?.data || err.message
+    });
   }
 });
 
 // ============================
-// RESOLVE MEETING
+// OTHER ROUTES (UNCHANGED)
 // ============================
+
 app.post("/resolve-meeting", (req, res) => {
   const allMeetings = Object.values(meetings);
 
@@ -64,15 +73,10 @@ app.post("/resolve-meeting", (req, res) => {
     return res.status(404).json({ error: "No meetings found" });
   }
 
-  // ✅ TEMP: return latest meeting
   const latestMeeting = allMeetings[allMeetings.length - 1];
-
   res.json({ meetingId: latestMeeting.id });
 });
 
-// ============================
-// GET MEETING
-// ============================
 app.get("/meeting/:id", (req, res) => {
   const meeting = getMeeting(req.params.id);
 
@@ -83,14 +87,10 @@ app.get("/meeting/:id", (req, res) => {
   res.json(meeting);
 });
 
-// ============================
-// ANSWER → AI
-// ============================
 app.post("/answer", async (req, res) => {
   try {
     const { meetingId, answer } = req.body;
 
-    // ✅ Validation
     if (!meetingId || !answer) {
       return res.status(400).json({ error: "Missing meetingId or answer" });
     }
@@ -101,21 +101,19 @@ app.post("/answer", async (req, res) => {
       return res.status(404).json({ error: "Meeting not found" });
     }
 
-    // ✅ Store answer
     meeting.answers.push(answer);
 
-    // ✅ Generate next question
     const nextQuestion = await getNextQuestion(answer);
 
-    // ✅ Store question
     meeting.questions.push(nextQuestion);
 
     return res.json({
       success: true,
       nextQuestion,
     });
+
   } catch (err) {
-    console.error("ANSWER ROUTE ERROR:", err.response?.data || err.message);
+    console.error("ANSWER ERROR:", err.response?.data || err.message);
 
     return res.status(500).json({
       error: "AI failed",
@@ -123,6 +121,7 @@ app.post("/answer", async (req, res) => {
     });
   }
 });
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on ${PORT}`);
 });

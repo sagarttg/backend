@@ -1,5 +1,8 @@
 import axios from "axios";
 
+// ============================
+// GET ACCESS TOKEN
+// ============================
 export async function getAccessToken() {
   const res = await axios.post(
     `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`,
@@ -19,6 +22,9 @@ export async function getAccessToken() {
   return res.data.access_token;
 }
 
+// ============================
+// CREATE TEAMS MEETING
+// ============================
 export async function createTeamsMeeting(candidateEmail) {
   const token = await getAccessToken();
 
@@ -51,4 +57,41 @@ export async function createTeamsMeeting(candidateEmail) {
   );
 
   return res.data;
+}
+
+// ============================
+// SEND EMAIL (FIX)
+// ============================
+export async function sendInviteEmail(candidateEmail, joinUrl) {
+  const token = await getAccessToken();
+
+  await axios.post(
+    `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/sendMail`,
+    {
+      message: {
+        subject: "AI Interview Invitation",
+        body: {
+          contentType: "HTML",
+          content: `
+            <h2>Interview Scheduled</h2>
+            <p>Your AI interview has been scheduled.</p>
+            <p><b>Join here:</b></p>
+            <a href="${joinUrl}">${joinUrl}</a>
+          `
+        },
+        toRecipients: [
+          {
+            emailAddress: {
+              address: candidateEmail
+            }
+          }
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
 }

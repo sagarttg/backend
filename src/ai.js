@@ -1,11 +1,11 @@
 import axios from "axios";
 
-export async function getNextQuestion(answer) {
-  if (!answer || answer.trim().length === 0) {
-    return "Can you tell me more about your experience?";
-  }
-
+export async function getNextQuestion({ answer, history }) {
   try {
+    const conversation = history
+      .map((h, i) => `Q${i + 1}: ${h.q}\nA${i + 1}: ${h.a}`)
+      .join("\n");
+
     const res = await axios.post(
       "https://api.anthropic.com/v1/messages",
       {
@@ -14,13 +14,18 @@ export async function getNextQuestion(answer) {
         messages: [
           {
             role: "user",
-            content: `You are an AI interviewer. 
-Based on this candidate answer:
+            content: `
+You are an AI interviewer.
 
+Conversation so far:
+${conversation}
+
+Candidate said:
 "${answer}"
 
-Ask ONE short, relevant follow-up interview question.
-Return ONLY the question. No explanation.`,
+Ask ONE short, smart follow-up question.
+Return ONLY the question.
+            `,
           },
         ],
       },
@@ -30,18 +35,13 @@ Return ONLY the question. No explanation.`,
           "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
-        timeout: 10000, // ⏱ prevents hanging
+        timeout: 10000,
       },
     );
 
-    const text = res.data?.content?.[0]?.text;
-
-    console.log(res.data,'sagar')
-
-    return text?.trim() || "Can you elaborate more on that?";
+    return res.data?.content?.[0]?.text?.trim() || "Can you elaborate more?";
   } catch (err) {
     console.error("AI ERROR:", err.response?.data || err.message);
-
-    return "Can you explain that in more detail?";
+    return "Can you explain that further?";
   }
 }

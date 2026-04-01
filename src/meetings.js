@@ -1,3 +1,4 @@
+import { getNextQuestion } from "./ai.js";
 
 export const meetings = {};
 
@@ -10,24 +11,26 @@ function extractJoinKey(joinUrl) {
   }
 }
 
-export function createMeetingRecord(meetingId, payload) {
+export async function createMeetingRecord(meetingId, payload) {
+  const firstQuestion = await getNextQuestion({
+    answer: "Start interview",
+    history: []
+  });
+
   meetings[meetingId] = {
     id: meetingId,
-    candidateEmail: payload.candidateEmail,
-    candidateName: payload.candidateEmail.split("@")[0], // simple name
+
+    candidate: payload.candidate,
 
     graphEventId: payload.graphEventId,
     joinUrl: payload.joinUrl,
     joinKey: extractJoinKey(payload.joinUrl),
 
     answers: [],
-    questions: [
-      "Tell me about yourself",
-      "Explain your recent project",
-      "What are your strengths?"
-    ]
+    questions: [firstQuestion]
   };
 }
+
 export function getMeeting(meetingId) {
   return meetings[meetingId];
 }

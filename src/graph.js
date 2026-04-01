@@ -63,7 +63,7 @@ export async function createTeamsMeeting(candidateEmail) {
           contentType: "HTML",
           content: `
             <p>Your interview has been scheduled.</p>
-            <p><b>Join here:</b></p>
+            <p><b>Testing_Mode_On=>Join here:</b></p>
             <a href="${joinUrl}">${joinUrl}</a>
           `
         },

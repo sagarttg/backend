@@ -22,7 +22,6 @@ export async function getAccessToken() {
 export async function createTeamsMeeting(candidateEmail) {
   const token = await getAccessToken();
 
-  // ✅ STEP 1: Create Teams meeting (same as before)
   const res = await axios.post(
     `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/events`,
     {
@@ -43,38 +42,6 @@ export async function createTeamsMeeting(candidateEmail) {
       ],
       isOnlineMeeting: true,
       onlineMeetingProvider: "teamsForBusiness"
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }
-  );
-
-  const joinUrl = res.data.onlineMeeting?.joinUrl;
-
-  // ✅ STEP 2: SEND EMAIL MANUALLY (THIS FIXES YOUR ISSUE)
-  await axios.post(
-    `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/sendMail`,
-    {
-      message: {
-        subject: "Your AI Interview Meeting Link",
-        body: {
-          contentType: "HTML",
-          content: `
-            <p>Your interview has been scheduled.</p>
-            <p><b>Testing_Mode_On=>Join here:</b></p>
-            <a href="${joinUrl}">${joinUrl}</a>
-          `
-        },
-        toRecipients: [
-          {
-            emailAddress: {
-              address: candidateEmail
-            }
-          }
-        ]
-      }
     },
     {
       headers: {

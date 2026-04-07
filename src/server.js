@@ -11,14 +11,11 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-const PORT = process.env.PORT || 5000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN;
-
 app.use(express.json());
 app.use(cors({ origin: "*" }));
 
 const io = new Server(server, {
-  cors: { origin: FRONTEND_ORIGIN },
+  cors: { origin: "*" },
 });
 
 /* ======================
@@ -44,7 +41,7 @@ async function getAccessToken() {
 }
 
 /* ======================
-   CREATE TEAMS MEETING
+   CREATE MEETING
 ====================== */
 async function createTeamsMeeting(email) {
   const token = await getAccessToken();
@@ -62,9 +59,7 @@ async function createTeamsMeeting(email) {
       isOnlineMeeting: true,
       onlineMeetingProvider: "teamsForBusiness",
     },
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    },
+    { headers: { Authorization: `Bearer ${token}` } },
   );
 
   return res.data;
@@ -85,18 +80,8 @@ io.on("connection", (socket) => {
 app.post("/candidate", (req, res) => {
   const { name, email, role, experience, skills } = req.body;
 
-  if (!name || !email) return res.status(400).json({ error: "Missing fields" });
-
   const id = crypto.randomUUID();
-
-  candidates[id] = {
-    id,
-    name,
-    email,
-    role,
-    experience,
-    skills,
-  };
+  candidates[id] = { id, name, email, role, experience, skills };
 
   res.json(candidates[id]);
 });
@@ -122,20 +107,21 @@ app.post("/meeting", async (req, res) => {
       joinUrl: data.onlineMeeting.joinUrl,
       graphMeetingId: data.onlineMeeting.id,
       transcript: [],
-      status: "active",
       lastTranscriptId: null,
+      status: "active",
     };
 
     res.json(meetings[id]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Meeting error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Meeting failed" });
   }
 });
 
 /* ======================
-   RESOLVE ACTIVE MEETING
+   RESOLVE MEETING
 ====================== */
-app.get("/resolve-meeting", (req, res) => {
+app.post("/resolve-meeting", (req, res) => {
   const active = Object.values(meetings).find((m) => m.status === "active");
   if (!active) return res.status(404).json({ error: "No active meeting" });
   res.json({ meetingId: active.id });
@@ -151,14 +137,25 @@ app.get("/meeting/:id", (req, res) => {
 });
 
 /* ======================
-   TRANSCRIPT FETCH
+   TRIGGER TRANSCRIPT
+====================== */
+app.get("/meeting/:id/transcript", async (req, res) => {
+  const meeting = meetings[req.params.id];
+  if (!meeting) return res.status(404).json({ error: "Not found" });
+
+  await fetchTranscript(meeting);
+  res.json({ ok: true });
+});
+
+/* ======================
+   FETCH TRANSCRIPT (FIXED)
 ====================== */
 async function fetchTranscript(meeting) {
   try {
     const token = await getAccessToken();
 
     const res = await axios.get(
-      `https://graph.microsoft.com/v1.0/communications/onlineMeetings/${meeting.graphMeetingId}/transcripts`,
+      `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/onlineMeetings/${meeting.graphMeetingId}/transcripts`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
 
@@ -168,44 +165,35 @@ async function fetchTranscript(meeting) {
       if (meeting.lastTranscriptId === t.id) continue;
 
       const content = await axios.get(
-        `https://graph.microsoft.com/v1.0/communications/callRecords/${t.id}/transcriptContent`,
+        `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/onlineMeetings/${meeting.graphMeetingId}/transcripts/${t.id}/content`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      const lines = content.data?.value || [];
+      const text = content.data;
 
-      lines.forEach((line) => {
-        const chunk = {
-          speaker: line.speaker || "unknown",
-          text: line.text,
-          at: new Date().toISOString(),
-        };
+      const chunk = {
+        speaker: "Teams",
+        text,
+        at: new Date().toISOString(),
+      };
 
-        meeting.transcript.push(chunk);
-        io.to(meeting.id).emit("transcript", chunk);
-      });
+      meeting.transcript.push(chunk);
+      io.to(meeting.id).emit("transcript", chunk);
 
       meeting.lastTranscriptId = t.id;
     }
   } catch (err) {
-    console.error("Transcript error:", err.message);
+    console.error("❌ Transcript ERROR:", err.response?.data || err.message);
   }
 }
 
 /* ======================
-   POLLING LOOP
+   POLLING
 ====================== */
 setInterval(() => {
   Object.values(meetings).forEach((m) => {
-    if (m.status === "active" && m.graphMeetingId) {
-      fetchTranscript(m);
-    }
+    if (m.status === "active") fetchTranscript(m);
   });
 }, 5000);
 
-/* ======================
-   START
-====================== */
-server.listen(PORT, () => {
-  console.log("🚀 Running on", PORT);
-});
+server.listen(5000, () => console.log("🚀 Backend running"));

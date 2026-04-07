@@ -16,27 +16,8 @@ const server = http.createServer(app);
 ============================ */
 
 const PORT = process.env.PORT || 5000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "*";
-
-/*
-Required ENV variables:
-----------------------
-PORT=5000
-FRONTEND_ORIGIN=http://localhost:3000
-
-# Microsoft Graph (for creating Teams meeting)
-TENANT_ID=xxxx
-CLIENT_ID=xxxx
-CLIENT_SECRET=xxxx
-ORGANIZER_EMAIL=admin@yourdomain.com
-
-# Azure Speech
-AZURE_SPEECH_KEY=xxxx
-AZURE_SPEECH_REGION=eastus
-
-# Optional webhook if you still want Graph callbacks later
-WEBHOOK_URL=https://yourdomain.com/api/callback
-*/
+const FRONTEND_ORIGIN =
+  process.env.FRONTEND_ORIGIN || "https://testingindex242.thetalent.games";
 
 app.use(express.json());
 app.use(cors({ origin: FRONTEND_ORIGIN }));
@@ -52,20 +33,18 @@ const io = new Server(server, {
    IN-MEMORY STORAGE
 ============================ */
 
-const candidates = {}; // { [candidateId]: {id,name,email} }
-const meetings = {}; // { [meetingId]: {...meeting data...} }
+const candidates = {};
+const meetings = {};
 
 /* ============================
    AI (DUMMY)
 ============================ */
 
 async function getNextQuestion({ history }) {
-  // Replace this with OpenAI call later
   if (!history || history.length === 0) {
     return "Tell me about yourself.";
   }
 
-  // Example simple progression
   const last = history[history.length - 1];
   if (!last?.a || last.a.trim().length < 10) {
     return "Can you explain that in a bit more detail?";
@@ -79,9 +58,7 @@ async function getNextQuestion({ history }) {
 ============================ */
 
 function normalizeEmail(email) {
-  return String(email || "")
-    .trim()
-    .toLowerCase();
+  return String(email || "").trim().toLowerCase();
 }
 
 function getCandidateByEmail(email) {
@@ -91,9 +68,7 @@ function getCandidateByEmail(email) {
 
 function ensureMeetingExists(meetingId) {
   const meeting = meetings[meetingId];
-  if (!meeting) {
-    throw new Error("Meeting not found");
-  }
+  if (!meeting) throw new Error("Meeting not found");
   return meeting;
 }
 
@@ -120,7 +95,7 @@ async function getAccessToken() {
     }),
     {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    },
+    }
   );
 
   return res.data.access_token;
@@ -165,7 +140,7 @@ async function createTeamsMeeting(candidateEmail) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-    },
+    }
   );
 
   return res.data;
@@ -175,11 +150,6 @@ async function createTeamsMeeting(candidateEmail) {
    AZURE SPEECH TOKEN ENDPOINT
 ============================ */
 
-/*
-Frontend uses Azure Speech SDK directly in browser.
-For security, do NOT expose AZURE_SPEECH_KEY to frontend.
-Instead, frontend requests a short-lived token from backend.
-*/
 app.get("/api/speech/token", async (req, res) => {
   try {
     const key = process.env.AZURE_SPEECH_KEY;
@@ -197,7 +167,7 @@ app.get("/api/speech/token", async (req, res) => {
           "Ocp-Apim-Subscription-Key": key,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-      },
+      }
     );
 
     return res.json({
@@ -211,41 +181,12 @@ app.get("/api/speech/token", async (req, res) => {
 });
 
 /* ============================
-   WEBHOOK (OPTIONAL)
-   Not used for live transcript.
-============================ */
-
-app.post("/api/callback", async (req, res) => {
-  // Validation handshake
-  if (req.query.validationToken) {
-    return res.status(200).send(req.query.validationToken);
-  }
-
-  try {
-    // If you keep subscriptions, validate clientState
-    const notifications = req.body.value || [];
-    for (const note of notifications) {
-      if (note.clientState && note.clientState !== "secure123") {
-        continue;
-      }
-      // You can log notifications for debugging
-      console.log("Graph notification:", note.resource);
-    }
-  } catch (err) {
-    console.error("❌ Webhook error:", err.message);
-  }
-
-  return res.sendStatus(200);
-});
-
-/* ============================
    SOCKET.IO
 ============================ */
 
 io.on("connection", (socket) => {
   console.log("🟢 Socket connected:", socket.id);
 
-  // Candidate/admin joins room for one meeting
   socket.on("join-meeting-room", ({ meetingId, role }) => {
     try {
       if (!meetingId) return;
@@ -253,11 +194,8 @@ io.on("connection", (socket) => {
       socket.data.meetingId = meetingId;
       socket.data.role = role || "unknown";
 
-      console.log(
-        `🔗 ${socket.id} joined room ${meetingId} as ${role || "unknown"}`,
-      );
+      console.log(`🔗 ${socket.id} joined room ${meetingId} as ${role || "unknown"}`);
 
-      // Send current state to newly joined socket
       const meeting = meetings[meetingId];
       if (meeting) {
         socket.emit("meeting-state", {
@@ -276,23 +214,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  /*
-    Candidate frontend sends transcript chunks:
-    {
-      meetingId: "...",
-      text: "I have 3 years of React experience...",
-      isFinal: true,
-      confidence: 0.92
-    }
-  */
-  socket.on("candidate-transcript", async (payload) => {
+  socket.on("candidate-transcript", async ({ meetingId, text, isFinal = true, confidence = null }) => {
     try {
-      const {
-        meetingId,
-        text,
-        isFinal = true,
-        confidence = null,
-      } = payload || {};
       if (!meetingId || !text || !String(text).trim()) return;
 
       const meeting = meetings[meetingId];
@@ -306,44 +229,34 @@ io.on("connection", (socket) => {
         at: new Date().toISOString(),
       };
 
-      // Push transcript and broadcast to room
       meeting.liveTranscript.push(chunk);
       io.to(meetingId).emit("transcript-update", chunk);
 
-      // Only process final chunks for answer -> next question
       if (!isFinal) return;
 
-      // Debounce duplicate finals (Speech SDK can emit repeated finals)
+      // debounce duplicate finals
       const now = Date.now();
-      if (now - (meeting.lastFinalAt || 0) < 1500) {
-        return;
-      }
+      if (now - (meeting.lastFinalAt || 0) < 1200) return;
       meeting.lastFinalAt = now;
 
-      // Save answer against current question
       const qIndex = meeting.currentQuestionIndex;
       meeting.answers[qIndex] = chunk.text;
 
-      // Build history
       const history = meeting.questions.map((q, i) => ({
         q,
         a: meeting.answers[i] || "",
       }));
 
-      // Generate next question
       const nextQuestion = await getNextQuestion({ history });
 
-      // Append next question and increment index
       meeting.questions.push(nextQuestion);
       meeting.currentQuestionIndex++;
 
-      // Broadcast next question to admin + candidate
       io.to(meetingId).emit("next-question", {
         nextQuestion,
         questionIndex: meeting.currentQuestionIndex,
       });
 
-      // Also store interviewer question in transcript for UI timeline
       const botChunk = {
         speaker: "interviewer",
         text: nextQuestion,
@@ -370,21 +283,15 @@ app.get("/", (req, res) => {
   res.send("Backend running 🚀");
 });
 
-/* ===== CREATE CANDIDATE ===== */
 app.post("/candidate", (req, res) => {
   try {
     const { name, email } = req.body || {};
-
     if (!name || !email) {
       return res.status(400).json({ error: "Name and email required" });
     }
 
     const id = crypto.randomUUID();
-    const candidate = {
-      id,
-      name: String(name).trim(),
-      email: normalizeEmail(email),
-    };
+    const candidate = { id, name: String(name).trim(), email: normalizeEmail(email) };
     candidates[id] = candidate;
 
     return res.json(candidate);
@@ -394,23 +301,17 @@ app.post("/candidate", (req, res) => {
   }
 });
 
-/* ===== CREATE MEETING ===== */
 app.post("/create-meeting", async (req, res) => {
   try {
     const { candidateEmail } = req.body || {};
-    if (!candidateEmail) {
-      return res.status(400).json({ error: "candidateEmail required" });
-    }
+    if (!candidateEmail) return res.status(400).json({ error: "candidateEmail required" });
 
     const candidate = getCandidateByEmail(candidateEmail);
-    if (!candidate) {
-      return res.status(404).json({ error: "Candidate not found" });
-    }
+    if (!candidate) return res.status(404).json({ error: "Candidate not found" });
 
     const data = await createTeamsMeeting(candidate.email);
 
     const meetingId = crypto.randomUUID();
-
     const graphMeetingId = data.onlineMeeting?.id || null;
     const joinUrl = data.onlineMeeting?.joinUrl || null;
 
@@ -440,22 +341,13 @@ app.post("/create-meeting", async (req, res) => {
       lastFinalAt: 0,
     };
 
-    return res.json({
-      meetingId,
-      joinUrl,
-      firstQuestion,
-      candidate,
-    });
+    return res.json({ meetingId, joinUrl, firstQuestion, candidate });
   } catch (err) {
-    console.error(
-      "❌ create-meeting error:",
-      err.response?.data || err.message,
-    );
+    console.error("❌ create-meeting error:", err.response?.data || err.message);
     return res.status(500).json({ error: "Meeting creation failed" });
   }
 });
 
-/* ===== GET MEETING STATE ===== */
 app.get("/meeting/:meetingId", (req, res) => {
   try {
     const { meetingId } = req.params;
@@ -477,7 +369,6 @@ app.get("/meeting/:meetingId", (req, res) => {
   }
 });
 
-/* ===== MANUAL NEXT QUESTION (admin can trigger) ===== */
 app.post("/meeting/:meetingId/next", async (req, res) => {
   try {
     const { meetingId } = req.params;
@@ -508,25 +399,13 @@ app.post("/meeting/:meetingId/next", async (req, res) => {
     });
     io.to(meetingId).emit("transcript-update", botChunk);
 
-    return res.json({
-      nextQuestion,
-      questionIndex: meeting.currentQuestionIndex,
-    });
+    return res.json({ nextQuestion, questionIndex: meeting.currentQuestionIndex });
   } catch (err) {
     console.error("manual next error:", err.message);
     return res.status(500).json({ error: "Failed to generate next question" });
   }
 });
-/* ===== Resolve Metting ===== */
 
-app.post("/resolve-meeting", (req, res) => {
-  // Return latest active meeting (or create one if needed)
-  const all = Object.values(meetings);
-  const active = all.reverse().find((m) => m.status === "active");
-  if (!active) return res.status(404).json({ error: "No active meeting found" });
-  return res.json({ meetingId: active.id });
-});
-/* ===== END MEETING ===== */
 app.post("/meeting/:meetingId/end", (req, res) => {
   try {
     const { meetingId } = req.params;
@@ -543,9 +422,13 @@ app.post("/meeting/:meetingId/end", (req, res) => {
   }
 });
 
-/* ============================
-   START SERVER
-============================ */
+// IMPORTANT: used by your Teams tab to find current meeting
+app.post("/resolve-meeting", (req, res) => {
+  const all = Object.values(meetings);
+  const active = all.reverse().find((m) => m.status === "active");
+  if (!active) return res.status(404).json({ error: "No active meeting found" });
+  return res.json({ meetingId: active.id });
+});
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on ${PORT}`);

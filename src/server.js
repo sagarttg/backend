@@ -517,7 +517,15 @@ app.post("/meeting/:meetingId/next", async (req, res) => {
     return res.status(500).json({ error: "Failed to generate next question" });
   }
 });
+/* ===== Resolve Metting ===== */
 
+app.post("/resolve-meeting", (req, res) => {
+  // Return latest active meeting (or create one if needed)
+  const all = Object.values(meetings);
+  const active = all.reverse().find((m) => m.status === "active");
+  if (!active) return res.status(404).json({ error: "No active meeting found" });
+  return res.json({ meetingId: active.id });
+});
 /* ===== END MEETING ===== */
 app.post("/meeting/:meetingId/end", (req, res) => {
   try {

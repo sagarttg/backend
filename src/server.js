@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN;
 
 app.use(express.json());
-app.use(cors({ origin: FRONTEND_ORIGIN }));
+app.use(cors({ origin: "*" }));
 
 const io = new Server(server, {
   cors: { origin: FRONTEND_ORIGIN },

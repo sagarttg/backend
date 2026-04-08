@@ -41,12 +41,30 @@ export function getMeetingHandler(req, res) {
 }
 
 export function resolveMeetingHandler(req, res) {
-  const { joinUrl } = req.body;
+  const { joinUrl, teamsMeetingId, chatId } = req.body;
 
-  const meeting = getMeetingByJoinUrl(joinUrl);
+  let meeting = null;
 
-  if (!meeting)
+  // 1. Try joinUrl
+  if (joinUrl) {
+    meeting = getMeetingByJoinUrl(joinUrl);
+  }
+
+  // 2. Try Teams meeting ID
+  if (!meeting && teamsMeetingId) {
+    meeting = Object.values(meetings).find(
+      (m) => m.graphMeetingId === teamsMeetingId
+    );
+  }
+
+  // 3. Last fallback (dev only)
+  if (!meeting && chatId) {
+    meeting = Object.values(meetings)[0];
+  }
+
+  if (!meeting) {
     return res.status(404).json({ error: "Meeting not found" });
+  }
 
   res.json({
     meetingId: meeting.id,

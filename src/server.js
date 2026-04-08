@@ -1,25 +1,26 @@
 import express from "express";
 import http from "http";
 import cors from "cors";
+import dotenv from "dotenv";
 
-import { ENV } from "./config/env.js";
 import routes from "./routes/index.js";
 import { initSocket } from "./utils/socket.js";
+
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
-/* ✅ CORS ALLOW ALL */
-app.use(cors({ origin: "*", methods: "*", allowedHeaders: "*" }));
-
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-app.get("/", (_, res) => res.send("Kai backend running 🚀"));
+app.get("/", (_, res) => res.send("Backend running 🚀"));
 
 app.use("/api", routes);
 
 initSocket(server);
 
-server.listen(ENV.PORT, "0.0.0.0", () => {
-  console.log(`Server running on ${ENV.PORT}`);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on ${PORT}`);
 });

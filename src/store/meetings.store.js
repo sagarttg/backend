@@ -8,8 +8,7 @@ export function getMeeting(id) {
   return meetings[id];
 }
 
-export function getMeetingByTeamsId(teamsMeetingId) {
-  return Object.values(meetings).find(
-    (m) => m.teamsMeetingId === teamsMeetingId
-  );
+export function getLatestMeeting() {
+  const all = Object.values(meetings);
+  return all[all.length - 1];
 }

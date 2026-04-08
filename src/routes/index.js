@@ -4,8 +4,8 @@ import multer from "multer";
 import { createCandidateHandler } from "../controllers/candidate.controller.js";
 import {
   createMeetingHandler,
-  getMeetingHandler,
   resolveMeetingHandler,
+  getMeetingHandler,
 } from "../controllers/meeting.controller.js";
 import { transcriptHandler } from "../controllers/transcript.controller.js";
 import { audioHandler } from "../controllers/audio.controller.js";
@@ -15,12 +15,9 @@ const upload = multer({ dest: "uploads/" });
 
 router.post("/candidate", createCandidateHandler);
 router.post("/create-meeting", createMeetingHandler);
-router.post("/transcript-chunk", transcriptHandler);
-
 router.post("/resolve-meeting", resolveMeetingHandler);
 router.get("/meeting/:meetingId", getMeetingHandler);
-
-/* 🔥 AUDIO */
+router.post("/transcript-chunk", transcriptHandler);
 router.post("/audio", upload.single("audio"), audioHandler);
 
 export default router;

@@ -4,7 +4,7 @@ export function createCandidateHandler(req, res) {
   const { name, email } = req.body;
 
   if (!name || !email) {
-    return res.status(400).json({ error: "Name and email required" });
+    return res.status(400).json({ error: "Name & email required" });
   }
 
   const candidate = createCandidate(req.body);

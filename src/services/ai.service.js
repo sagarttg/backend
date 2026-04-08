@@ -1,37 +1,32 @@
 import OpenAI from "openai";
-import { ENV } from "../config/env.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const openai = new OpenAI({
-  apiKey: ENV.OPENAI_KEY
+  apiKey: process.env.OPENAI_KEY,
 });
 
 export async function getNextQuestion({ answer, history }) {
-  try {
-    const transcript = history
-      .map((h, i) => `Q${i + 1}: ${h.q}\nA${i + 1}: ${h.a}`)
-      .join("\n");
+  const transcript = history
+    .map((h, i) => `Q${i + 1}: ${h.q}\nA${i + 1}: ${h.a}`)
+    .join("\n");
 
-    const prompt = `
-You are an AI interviewer.
-
+  const prompt = `
 Conversation:
 ${transcript || "None"}
 
 Candidate said:
 "${answer}"
 
-Ask ONE short follow-up question.
+Ask ONE short question.
 `;
 
-    const res = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_tokens: 50,
-      messages: [{ role: "user", content: prompt }]
-    });
+  const res = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 50,
+  });
 
-    return res.choices[0].message.content.trim();
-  } catch (err) {
-    console.error("AI ERROR:", err.message);
-    return "Can you elaborate more?";
-  }
+  return res.choices[0].message.content.trim();
 }

@@ -1,19 +1,11 @@
-import {
-  getMeeting,
-  getMeetingByTeamsId,
-  meetings,
-} from "../store/meetings.store.js";
-import { createMeeting } from "../services/meeting.service.js";
-import { createTeamsMeeting } from "../services/graph.service.js";
 import { getCandidateByEmail } from "../store/candidates.store.js";
+import { createMeeting } from "../services/meeting.service.js";
+import { getMeeting, getLatestMeeting } from "../store/meetings.store.js";
+import { createTeamsMeeting } from "../services/graph.service.js";
 
 export async function createMeetingHandler(req, res) {
   try {
-    const { candidateEmail, teamsMeetingId } = req.body;
-
-    if (!candidateEmail || !teamsMeetingId) {
-      return res.status(400).json({ error: "Missing data" });
-    }
+    const { candidateEmail } = req.body;
 
     const candidate = getCandidateByEmail(candidateEmail);
     if (!candidate) {
@@ -27,52 +19,28 @@ export async function createMeetingHandler(req, res) {
       console.warn("Graph skipped");
     }
 
-    const meeting = await createMeeting(
-      candidate,
-      graphData,
-      teamsMeetingId
-    );
+    const meeting = await createMeeting(candidate, graphData);
 
     res.json({
       meetingId: meeting.id,
       joinUrl: meeting.joinUrl,
     });
   } catch (err) {
-    console.error(err.message);
     res.status(500).json({ error: "Meeting failed" });
   }
 }
 
 export function resolveMeetingHandler(req, res) {
-  try {
-    const { teamsMeetingId } = req.body;
+  const meeting = getLatestMeeting();
 
-    console.log("Resolving:", teamsMeetingId);
-
-    let meeting = null;
-
-    if (teamsMeetingId) {
-      meeting = getMeetingByTeamsId(teamsMeetingId);
-    }
-
-    // ✅ fallback (SAFE FOR TESTING)
-    if (!meeting) {
-      const all = Object.values(meetings);
-      meeting = all[all.length - 1];
-    }
-
-    if (!meeting) {
-      return res.status(404).json({ error: "No meetings found" });
-    }
-
-    res.json({
-      meetingId: meeting.id,
-      meeting, // 🔥 IMPORTANT FIX
-    });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: "Resolve failed" });
+  if (!meeting) {
+    return res.status(404).json({ error: "No meetings found" });
   }
+
+  res.json({
+    meetingId: meeting.id,
+    meeting,
+  });
 }
 
 export function getMeetingHandler(req, res) {

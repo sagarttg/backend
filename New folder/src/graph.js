@@ -19,33 +19,23 @@ export async function getAccessToken() {
   return res.data.access_token;
 }
 
-export async function createTeamsMeeting(candidateEmail) {
+export async function createTeamsMeeting() {
   const token = await getAccessToken();
 
+  const start = new Date(Date.now() + 5 * 60 * 1000);
+  const end = new Date(Date.now() + 35 * 60 * 1000);
+
   const res = await axios.post(
-    `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/events`,
+    `https://graph.microsoft.com/v1.0/users/${process.env.ORGANIZER_EMAIL}/onlineMeetings`,
     {
       subject: "AI Interview",
-      start: {
-        dateTime: new Date(Date.now() + 5 * 60000).toISOString(),
-        timeZone: "UTC"
-      },
-      end: {
-        dateTime: new Date(Date.now() + 35 * 60000).toISOString(),
-        timeZone: "UTC"
-      },
-      attendees: [
-        {
-          emailAddress: { address: candidateEmail },
-          type: "required"
-        }
-      ],
-      isOnlineMeeting: true,
-      onlineMeetingProvider: "teamsForBusiness"
+      startDateTime: start.toISOString(),
+      endDateTime: end.toISOString()
     },
     {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
       }
     }
   );

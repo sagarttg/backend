@@ -4,16 +4,14 @@ let io;
 
 export function initSocket(server) {
   io = new Server(server, {
-    cors: { origin: "*" }
+    cors: { origin: "*" },
   });
 
   io.on("connection", (socket) => {
     socket.on("join-meeting-room", ({ meetingId }) => {
-      if (meetingId) socket.join(meetingId);
+      socket.join(meetingId);
     });
   });
-
-  return io;
 }
 
 export function getIO() {

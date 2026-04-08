@@ -10,20 +10,16 @@ export async function createMeeting(candidate, graphData, teamsMeetingId) {
     history: [],
   });
 
- const meeting = {
-  id: meetingId,
-  candidate,
-
-  // 🔥 KEY FIX
-  teamsMeetingId: graphData.joinWebUrl,
-
-  graphMeetingId: graphData.id,
-  joinUrl: graphData.joinWebUrl,
-
-  questions: [firstQuestion],
-  answers: [],
-  liveTranscript: [],
-};
+  const meeting = {
+    id: meetingId,
+    candidate,
+    teamsMeetingId, // 🔥 CRITICAL
+    graphMeetingId: graphData?.id,
+    joinUrl: graphData?.joinWebUrl,
+    questions: [firstQuestion],
+    answers: [],
+    liveTranscript: [],
+  };
 
   saveMeeting(meetingId, meeting);
 

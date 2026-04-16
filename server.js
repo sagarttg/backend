@@ -15,8 +15,7 @@ global.clients = [];
 global.transcriptBuffer = [];
 
 wss.on("connection", (ws) => {
-  console.log("✅ Frontend connected");
-
+  console.log("Frontend connected");
   global.clients.push(ws);
 
   ws.on("close", () => {
@@ -27,5 +26,5 @@ wss.on("connection", (ws) => {
 app.use("/api", interviewRoutes);
 
 server.listen(process.env.PORT || 3000, () => {
-  console.log(`🚀 Server running on ${process.env.PORT || 3000}`);
+  console.log(`Server running on ${process.env.PORT || 3000}`);
 });

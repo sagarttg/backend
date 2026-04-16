@@ -1,32 +1,34 @@
 const axios = require("axios");
 const { getAccessToken } = require("../config/auth");
 
-const createMeeting = async () => {
-  try {
-    const token = await getAccessToken();
+async function createMeeting() {
+  const organizerId = process.env.ORGANIZER_OBJECT_ID;
 
-    const organizer = process.env.ORGANIZER_OBJECT_ID;
-
-    const url = `https://graph.microsoft.com/v1.0/users/${organizer}/onlineMeetings`;
-
-    const body = {
-      subject: "AI Interview Session",
-      startDateTime: new Date().toISOString(),
-      endDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    };
-
-    const res = await axios.post(url, body, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    return res.data;
-
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    throw err;
+  if (!organizerId) {
+    throw new Error("Missing ORGANIZER_OBJECT_ID");
   }
-};
+
+  const token = await getAccessToken();
+
+  const url = `https://graph.microsoft.com/v1.0/users/${organizerId}/onlineMeetings`;
+
+  const start = new Date();
+  const end = new Date(Date.now() + 60 * 60 * 1000);
+
+  const body = {
+    subject: "AI Interview Session",
+    startDateTime: start.toISOString(),
+    endDateTime: end.toISOString(),
+  };
+
+  const response = await axios.post(url, body, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  return response.data;
+}
+
 module.exports = { createMeeting };

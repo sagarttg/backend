@@ -9,9 +9,9 @@ const extractQA = (text) => {
     const s = cleaned[i];
 
     if (!question && s.endsWith("?")) {
-      question = s.trim();
+      question = s;
       if (i + 1 < cleaned.length) {
-        answer = cleaned[i + 1].trim();
+        answer = cleaned[i + 1];
       }
       break;
     }

@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require("uuid");
 
 const candidates = {};
 
+// CREATE CANDIDATE
 function createCandidate(data) {
   const id = uuidv4();
 
@@ -13,24 +14,21 @@ function createCandidate(data) {
     questionBank: data.questionBank || [],
     resumeData: data.resumeData || {},
 
-    threadId: data.threadId || null, // ✅ store threadId
+    meetingId: data.meetingId, // ✅ ONLY SOURCE OF TRUTH
     transcript: [],
   };
 
   return candidates[id];
 }
-function attachMeeting(candidateId, threadId) {
-  if (candidates[candidateId]) {
-    candidates[candidateId].threadId = threadId;
-  }
-}
 
-function getCandidateByMeetingId(threadId) {
+// FIND BY MEETING / THREAD ID (SAME THING)
+function getCandidateByMeetingId(meetingId) {
   return Object.values(candidates).find(
-    (c) => c.threadId === threadId
+    (c) => c.meetingId === meetingId
   );
 }
 
+// ADD TRANSCRIPT
 function addTranscript(meetingId, text) {
   const candidate = getCandidateByMeetingId(meetingId);
   if (!candidate) return null;
@@ -41,7 +39,6 @@ function addTranscript(meetingId, text) {
 
 module.exports = {
   createCandidate,
-  attachMeeting,
   getCandidateByMeetingId,
   addTranscript,
 };

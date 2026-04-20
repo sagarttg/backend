@@ -10,29 +10,24 @@ function createCandidate(data) {
     name: data.name,
     email: data.email,
     password: data.password,
-
-    // ✅ structured question bank
     questionBank: data.questionBank || [],
-
-    // ✅ structured resume
     resumeData: data.resumeData || {},
 
-    meetingId: null,
+    threadId: data.threadId || null, // ✅ store threadId
     transcript: [],
   };
 
   return candidates[id];
 }
-
-function attachMeeting(candidateId, meetingId) {
+function attachMeeting(candidateId, threadId) {
   if (candidates[candidateId]) {
-    candidates[candidateId].meetingId = meetingId;
+    candidates[candidateId].threadId = threadId;
   }
 }
 
-function getCandidateByMeetingId(meetingId) {
+function getCandidateByMeetingId(threadId) {
   return Object.values(candidates).find(
-    (c) => c.meetingId === meetingId
+    (c) => c.threadId === threadId
   );
 }
 

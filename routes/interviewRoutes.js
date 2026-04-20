@@ -16,13 +16,7 @@ const axios = require("axios");
 // ======================
 router.post("/create-interview", async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      questionBank,
-      resumeData,
-    } = req.body;
+    const { name, email, password, questionBank, resumeData } = req.body;
 
     const meeting = await createMeeting();
 
@@ -35,30 +29,30 @@ router.post("/create-interview", async (req, res) => {
       meetingId: meeting.id, // ✅ IMPORTANT
     });
 
-    const botResponse = await axios.post(
-      "https://dotnet.thetalent.games/Calls",
-      {
-        JoinUrl: meeting.joinWebUrl,
-      },
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    let botResponse = null;
+
+    try {
+      botResponse = await axios.post(
+        "https://dotnet.thetalent.games/Calls",
+        { JoinUrl: meeting.joinWebUrl },
+        { headers: { "Content-Type": "application/json" } },
+      );
+    } catch (err) {
+      console.log("⚠️ Bot service failed, continuing without it");
+    }
 
     res.json({
       ok: true,
       candidateId: candidate.id,
       meetingId: meeting.id,
       meetingLink: meeting.joinWebUrl,
-      botJoinStatus: botResponse.data,
+      botJoinStatus: botResponse 
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
 
 // ======================
 // GET CANDIDATE (BY THREAD)
@@ -74,7 +68,6 @@ router.get("/candidate", (req, res) => {
 
   res.json(candidate);
 });
-
 
 // ======================
 // TRANSCRIPT
@@ -98,7 +91,6 @@ router.post("/transcript", (req, res) => {
       question,
       answer,
     });
-
   } catch (err) {
     console.error(err);
     res.sendStatus(500);

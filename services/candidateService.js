@@ -22,9 +22,12 @@ function createCandidate(data) {
 }
 
 // FIND BY MEETING / THREAD ID (SAME THING)
-function getCandidateByMeetingId(meetingId) {
+function getCandidateByMeetingId(threadId) {
   return Object.values(candidates).find(
-    (c) => c.meetingId === meetingId
+    (c) =>
+      c.meetingId === threadId ||
+      threadId.includes(c.meetingId) ||
+      c.meetingId.includes(threadId)
   );
 }
 
